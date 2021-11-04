@@ -1,17 +1,60 @@
-#人脸识别门禁系统2.0
+#人脸识别门禁系统3.0
 #引入库
 import tkinter
 import tkinter.messagebox
 import sys
+import os
+import cv2
 
 #定义函数
 def add(): #添加新面部信息
+    cam = cv2.VideoCapture(0)
+    cam.set(3, 640) #设置视频宽度
+    cam.set(4, 480) #设置视频高度
+     
+    face_detector = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
+     
+    #face_id = input('\n enter user id end press <return> ==>  ')
+    face_id = t1.get()
+    print("\n正在初始化录入系统，请正对摄像头等待几秒钟……")
+    #初始化
+    count = 0
+     
+    while(True):
+        ret, img = cam.read()
+        #img = cv2.flip(img, -1) #反转图像
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        faces = face_detector.detectMultiScale(gray, 1.3, 5)
+     
+        for (x,y,w,h) in faces:
+            cv2.rectangle(img, (x,y), (x+w,y+h), (255,0,0), 2)     
+            count += 1
+     
+            #将拍摄的图片保存在文件夹
+            cv2.imwrite("dataset/User." + str(face_id) + '.' + str(count) + ".jpg", gray[y:y+h,x:x+w])
+     
+            cv2.imshow('image', img)
+     
+        k = cv2.waitKey(100) & 0xff # Press 'ESC' 退出
+        if k == 27:
+            break
+        elif count >= 50: #拍50张照片
+             break
+     
+    #清理工作
+    print("\n正在退出程序和清理工作")
+    cam.release()
+    cv2.destroyAllWindows()
     print("录入编号："+t1.get()+"，名称："+t2.get()+"成功！")
+    #tkinter.messagebox.showinfo('录入成功','录入成功！           ')
 def train(): #训练新数据库
+    os.system("python 02_face_training.py")
     print("更新面部识别库成功！")
 def recognite(): #启动人脸识别
     print("正在启动人脸识别门禁系统")
+    os.system("python 03_face_recognition.py")
 def openfile(): #打开文件
+    os.system("start explorer dataset")
     print("打开文件成功")
 def openfacefile(): #打开人脸文件
     print("打开人脸文件夹成功")
@@ -24,9 +67,9 @@ def helptrain(): #训练帮助
 def helprecognite(): #识别帮助
     tkinter.messagebox.showinfo('帮助','识别帮助')
 def checknew(): #检查更新
-    tkinter.messagebox.showinfo('检查更新','\n当前版本：2.0                       \n已是最新版本!\n')
+    tkinter.messagebox.showinfo('检查更新','\n当前版本：3.0                       \n已是最新版本!\n')
 def about(): #关于
-    tkinter.messagebox.showinfo('关于','\n作者：张志昊\n时间：2021/4/16                           \n版本：2.0\n')
+    tkinter.messagebox.showinfo('关于','\n作者：张志昊\n时间：2021/4/17                           \n版本：3.0\n')
 def exitsystem(): #退出系统
     sys.exit(0)
 
@@ -51,7 +94,6 @@ f1.add_command(label="退出系统",command=exitsystem)
 f2.add_command(label="录入信息帮助",command=helpadd) #子菜单栏f2
 f2.add_command(label="训练数据帮助",command=helptrain)
 f2.add_command(label="启动系统帮助",command=helprecognite)
-
 
 f.add_cascade(label="菜单",menu=f1) #创建顶级菜单栏，并关联子菜单
 f.add_cascade(label="帮助",menu=f2)
