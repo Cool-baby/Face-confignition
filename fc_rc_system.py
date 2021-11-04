@@ -1,4 +1,4 @@
-#人脸识别门禁系统4.0
+#人脸识别门禁系统5.0
 #引入库
 import tkinter
 import tkinter.messagebox
@@ -11,7 +11,7 @@ from PIL import Image
 
 #变量定义
 id = 0 #人脸编号
-names = ['None', 'Hao', 'Han'] #人脸名称数组，与id对应
+names = ['None','hao'] #人脸名称数组，与id对应
 
 #定义函数
 def add(): #添加新面部信息
@@ -24,6 +24,7 @@ def add(): #添加新面部信息
         text.see(tkinter.END)
         text.update()
         return
+    #names.append(face_name)
     time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S') #时间
     text.insert(tkinter.END, time+'->正在录入面部信息，请正对摄像头等待几秒钟……\n')#输出框显示信息
     text.see(tkinter.END)#输出框输入柄到尾部
@@ -31,14 +32,13 @@ def add(): #添加新面部信息
     cam = cv2.VideoCapture(0)
     cam.set(3, 640) #设置视频宽度
     cam.set(4, 480) #设置视频高度
-     
+    
     face_detector = cv2.CascadeClassifier('cascade_classifier/haarcascade_frontalface_default.xml')
      
     #print("\n正在初始化录入系统，请正对摄像头等待几秒钟……")
     
     #初始化
     count = 0
-     
     while(True):
         ret, img = cam.read()
         #img = cv2.flip(img, -1) #反转图像
@@ -60,8 +60,6 @@ def add(): #添加新面部信息
              break
      
     #清理工作
-    #text.insert(tkinter.END, time+'->正在退出人脸录入并清理内存\n')
-    #text.see(tkinter.END)
     cam.release()
     cv2.destroyAllWindows()
     #print("录入编号："+t1.get()+"，名称："+t2.get()+"成功！")
@@ -149,7 +147,7 @@ def recognite(): #启动人脸识别
            )
      
         for(x,y,w,h) in faces:
-            cv2.rectangle(img, (x,y), (x+w,y+h), (0,255,190), 2)
+            cv2.rectangle(img, (x,y), (x+w,y+h), (0,255,190), 2)#脸部识别框配置
             id,confidence = recognizer.predict(gray[y:y+h,x:x+w])
      
             # 检查confidence是否在id已经定义
@@ -165,7 +163,7 @@ def recognite(): #启动人脸识别
                     text.update()
                     after = before
             else:
-                id = "unknown"
+                id = "未授权用户"
                 confidence = "{0}%".format(round(100 - confidence))
              
             cv2.putText(img, str(id), (x+5,y-5), font, 1, (255,255,255), 2)
@@ -217,9 +215,9 @@ def checknew(): #检查更新
     text.insert(tkinter.END, time+'->检查更新\n')
     text.see(tkinter.END)
     text.update()
-    tkinter.messagebox.showinfo('检查更新','\n当前版本：4.0                       \n已是最新版本!\n')
+    tkinter.messagebox.showinfo('检查更新','\n当前版本：5.0                       \n已是最新版本!\n')
 def about(): #关于
-    tkinter.messagebox.showinfo('关于','\n作者：张志昊\n时间：2021/4/18                           \n版本：4.0\n')
+    tkinter.messagebox.showinfo('关于','\n作者：张志昊\n时间：2021/4/18                           \n版本：5.0\n')
 def exitsystem(): #退出系统
     time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S') #时间
     text.insert(tkinter.END, time+'->正在退出系统\n')
