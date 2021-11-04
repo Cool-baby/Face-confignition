@@ -1,4 +1,5 @@
-#人脸识别门禁系统5.0
+#人脸识别门禁系统7.0
+
 #引入库
 import tkinter
 import tkinter.messagebox
@@ -9,15 +10,75 @@ import datetime
 import socket
 import numpy as np
 from PIL import Image
+import pyttsx3
+import RPi.GPIO as GPIO
+from time import sleep
+from mlx90614 import MLX90614
+
+#初始化MLX引脚，IIC
+thermometer_address = 0x5a
+
+#初始化语言
+word = pyttsx3.init()#初始化
+rate = word.getProperty('rate')#设置语速
+word.setProperty('rate', 125)
+word.setProperty('voice', 'zh')#设置中文
+
+#初始化舵机
+def tonum(num):  # 角度转换
+    fm = 10.0 / 180.0
+    num = num * fm + 2.5
+    num = int(num * 10) / 10.0
+    return num
+GPIO.setmode(GPIO.BOARD)
+ 
+In_Pin1=36#door
+In_Pin2=38#up-down
+In_Pin3=40#left-right
+
+GPIO.setup(In_Pin1,GPIO.OUT,initial=GPIO.LOW)
+GPIO.setup(In_Pin2,GPIO.OUT,initial=GPIO.LOW)
+GPIO.setup(In_Pin3,GPIO.OUT,initial=GPIO.LOW)
+
+p1 = GPIO.PWM(In_Pin1,50)
+p2 = GPIO.PWM(In_Pin2,50)
+p3 = GPIO.PWM(In_Pin3,50)
+
+p1.start(tonum(90))#door
+p2.start(tonum(120))#up-down
+p3.start(tonum(90))#left-right
+sleep(0.5)
+
+p1.ChangeDutyCycle(0) #清除当前占空比
+p2.ChangeDutyCycle(0)
+p3.ChangeDutyCycle(0)
+sleep(0.1)
+
+def door(): #开门
+    #p1 = GPIO.PWM(In_Pin1,50)
+    p1.ChangeDutyCycle(tonum(180))
+    sleep(1)
+    p1.ChangeDutyCycle(tonum(90))
+    sleep(0.1)
+    p1.ChangeDutyCycle(0)  #清除当前占空比
+    sleep(0.01)
+    
+#舵机角度变量
+global sp
+global cz
+sp=90
+cz=120
 
 #创建socket链接
-tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM) # 创建socket
-server_addr = ("*.*.*.*", *) # 链接服务器
-tcp_socket.connect(server_addr)
+#tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM) # 创建socket
+server_addr = ("*.*.*.*", *) # 链接mysql服务器
 
 #变量定义
 id = 0 #人脸编号
-names = ['None','hao'] #人脸名称数组，与id对应
+names = ['None','hao','qing'] #人脸名称数组，与id对应
+
+#提前加载分类器，提高代码运行速度
+face_detector = cv2.CascadeClassifier('cascade_classifier/haarcascade_frontalface_default.xml')
 
 #定义函数
 def add(): #添加新面部信息
@@ -33,17 +94,17 @@ def add(): #添加新面部信息
     #names.append(face_name)
     time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S') #时间
     text.insert(tkinter.END, time+'->正在录入面部信息，请正对摄像头等待几秒钟……\n')#输出框显示信息
+    word.say('请正对摄像头')
+    word.runAndWait()
     text.see(tkinter.END)#输出框输入柄到尾部
     text.update()#输出框实时更新数据
     cam = cv2.VideoCapture(0)
     cam.set(3, 640) #设置视频宽度
     cam.set(4, 480) #设置视频高度
-    
-    face_detector = cv2.CascadeClassifier('cascade_classifier/haarcascade_frontalface_default.xml')
      
     #print("\n正在初始化录入系统，请正对摄像头等待几秒钟……")
     #初始化
-    count = 0
+    count = 0#拍照数量计数器
     while(True):
         ret, img = cam.read()
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
@@ -57,7 +118,7 @@ def add(): #添加新面部信息
             cv2.imwrite("dataset/User." + str(face_id) + '.' + str(count) + ".jpg", gray[y:y+h,x:x+w])
             cv2.imshow('录入面部信息', img)
      
-        k = cv2.waitKey(100) & 0xff # Press 'ESC' 退出
+        k = cv2.waitKey(100) & 0xff # 按 'ESC' 退出
         if k == 27:
             break
         elif count >= 50: #拍50张照片
@@ -115,6 +176,8 @@ def train(): #训练新数据库
     text.insert(tkinter.END, time+'->成功训练'+number+'个数据\n')
     text.see(tkinter.END)
     text.update()
+    word.say('数据训练完成')
+    word.runAndWait()
 def recognite(): #启动人脸识别
 
     time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S') #时间
@@ -149,12 +212,11 @@ def recognite(): #启动人脸识别
             scaleFactor = 1.2,
             minNeighbors = 5,
             minSize = (int(minW), int(minH)),
-           )
-     
+           ) 
         for(x,y,w,h) in faces:
             cv2.rectangle(img, (x,y), (x+w,y+h), (0,255,190), 2)#脸部识别框配置
             id,confidence = recognizer.predict(gray[y:y+h,x:x+w])
-     
+            
             # 检查confidence是否在id已经定义
             if (confidence < 100):
                 before = id
@@ -162,16 +224,33 @@ def recognite(): #启动人脸识别
                 confidence = "Similarity{0}%".format(round(100 - confidence))
                 if (before!=after):
                     #print("Name->",id,",time->",time)
-                    #send_data = input("1请输入要发送的数据：") # 发送数据
-                    
                     time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S') #时间
-                    text.insert(tkinter.END, time+'->'+id+'进入\n')
-                    text.see(tkinter.END)
-                    text.update()
-                    send_data = id
-                    tcp_socket.send(send_data.encode("utf8"))
-                    tcp_socket.close() # 关闭套接字
-                    after = before
+                    #word.say('请将手腕放于体温测量处')
+                    #word.runAndWait()
+                    thermometer = MLX90614(thermometer_address)
+                    temp=thermometer.get_obj_temp()
+                    if(temp<37.20000):
+                        text.insert(tkinter.END, time+'->'+id+'进入，体温：'+str(temp)+'\n')
+                        text.see(tkinter.END)
+                        text.update()
+                        send_data = """{"name":"%s","temp":"%f"}"""%(id,temp)
+                        try:
+                            tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM) # 创建socket
+                            tcp_socket.connect(server_addr)
+                            tcp_socket.send(send_data.encode("utf8"))
+                            tcp_socket.close() # 关闭套接字
+                        except IOError:
+                            text.insert(tkinter.END, time+'->'+'服务器链接失败，请检查服务器监听程序\n')
+                            text.see(tkinter.END)
+                            text.update()
+                            word.say('连接服务器失败')
+                            word.runAndWait()
+                            exitsystem()
+                        after = before
+                        door()
+                    else:
+                        word.say('体温异常，禁止入内')
+                        word.runAndWait()
             else:
                 id = "未授权用户"
                 confidence = "{0}%".format(round(100 - confidence))
@@ -192,14 +271,63 @@ def recognite(): #启动人脸识别
     time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S') #时间
     text.insert(tkinter.END, time+'->退出人脸识别系统\n')
     text.see(tkinter.END)
+
 def up():
-    print("up\n")
+    global cz
+    if cz>100 and cz<150:
+        cz=cz-10
+        p2.ChangeDutyCycle(tonum(cz))  #执行角度变化，跳转到q列表中对应第c位元素的角度
+        sleep(0.1)
+        p2.ChangeDutyCycle(0)  #清除当前占空比，使舵机停止抖动
+        sleep(0.01)
+    else:
+        cz=120
+        p2.ChangeDutyCycle(tonum(cz))  #执行角度变化，跳转到q列表中对应第c位元素的角度
+        sleep(0.1)
+        p2.ChangeDutyCycle(0)  #清除当前占空比，使舵机停止抖动
+        sleep(0.01)
 def down():
-    print("down\n")
+    global cz
+    if cz>100 and cz<150:
+        cz=cz+10
+        p2.ChangeDutyCycle(tonum(cz))  #执行角度变化，跳转到q列表中对应第c位元素的角度
+        sleep(0.1)
+        p2.ChangeDutyCycle(0)  #清除当前占空比，使舵机停止抖动
+        sleep(0.01)
+    else:
+        cz=120
+        p2.ChangeDutyCycle(tonum(cz))  #执行角度变化，跳转到q列表中对应第c位元素的角度
+        sleep(0.1)
+        p2.ChangeDutyCycle(0)  #清除当前占空比，使舵机停止抖动
+        sleep(0.01)
 def left():
-    print("left\n")
+    global sp
+    if sp>0 and sp<180:
+        sp=sp-10
+        p3.ChangeDutyCycle(tonum(sp))  #执行角度变化，跳转到q列表中对应第c位元素的角度
+        sleep(0.1)
+        p3.ChangeDutyCycle(0)  #清除当前占空比，使舵机停止抖动
+        sleep(0.01)
+    else:
+        sp=90
+        p3.ChangeDutyCycle(tonum(sp))  #执行角度变化，跳转到q列表中对应第c位元素的角度
+        sleep(0.1)
+        p3.ChangeDutyCycle(0)  #清除当前占空比，使舵机停止抖动
+        sleep(0.01)
 def right():
-    print("right\n")
+    global sp
+    if sp>0 and sp<180:
+        sp=sp+10
+        p3.ChangeDutyCycle(tonum(sp))  #执行角度变化，跳转到q列表中对应第c位元素的角度
+        sleep(0.1)
+        p3.ChangeDutyCycle(0)  #清除当前占空比，使舵机停止抖动
+        sleep(0.01)
+    else:
+        sp=90
+        p3.ChangeDutyCycle(tonum(sp))  #执行角度变化，跳转到q列表中对应第c位元素的角度
+        sleep(0.1)
+        p3.ChangeDutyCycle(0)  #清除当前占空比，使舵机停止抖动
+        sleep(0.01)
 def openfile(): #打开文件
     #os.system('start explorer' dataset)
     #os.startfile('dataset')
@@ -225,10 +353,11 @@ def checknew(): #检查更新
     text.insert(tkinter.END, time+'->检查更新\n')
     text.see(tkinter.END)
     text.update()
-    tkinter.messagebox.showinfo('检查更新','\n当前版本：6.0                       \n已是最新版本!\n')
+    tkinter.messagebox.showinfo('检查更新','\n当前版本：7.0                       \n已是最新版本!\n')
 def about(): #关于
-    tkinter.messagebox.showinfo('关于','\n作者：张志昊\n时间：2021/5/10                           \n版本：4.0\n')
+    tkinter.messagebox.showinfo('关于','\n作者：张志昊\n时间：2021/5/23                           \n版本：7.0\n')
 def exitsystem(): #退出系统
+    GPIO.cleanup()
     time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S') #时间
     text.insert(tkinter.END, time+'->正在退出系统\n')
     text.see(tkinter.END)
