@@ -5,4 +5,5 @@ Face recognition based on Raspberry Pi.
 4.0:Fusion of three face recognition algorithms!
 5.0:A little optimization!
 6.0:Add the function of sending information to the server!
-7.0:Add temperature detection and voice prompt function!
+7.0:Add temperature function and voice prompt function!
+8.0:Update completed!End of this project!The method of storing user name information is not perfect.2021/11/4

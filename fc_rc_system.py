@@ -75,7 +75,7 @@ server_addr = ("*.*.*.*", *) # 链接mysql服务器
 
 #变量定义
 id = 0 #人脸编号
-names = ['None','hao','qing'] #人脸名称数组，与id对应
+names = ['None','*','*'] #人脸名称数组，与id对应
 
 #提前加载分类器，提高代码运行速度
 face_detector = cv2.CascadeClassifier('cascade_classifier/haarcascade_frontalface_default.xml')
