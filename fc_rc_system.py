@@ -6,8 +6,14 @@ import sys
 import os
 import cv2
 import datetime
+import socket
 import numpy as np
 from PIL import Image
+
+#创建socket链接
+tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM) # 创建socket
+server_addr = ("*.*.*.*", *) # 链接服务器
+tcp_socket.connect(server_addr)
 
 #变量定义
 id = 0 #人脸编号
@@ -36,12 +42,10 @@ def add(): #添加新面部信息
     face_detector = cv2.CascadeClassifier('cascade_classifier/haarcascade_frontalface_default.xml')
      
     #print("\n正在初始化录入系统，请正对摄像头等待几秒钟……")
-    
     #初始化
     count = 0
     while(True):
         ret, img = cam.read()
-        #img = cv2.flip(img, -1) #反转图像
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         faces = face_detector.detectMultiScale(gray, 1.3, 5)
      
@@ -112,6 +116,7 @@ def train(): #训练新数据库
     text.see(tkinter.END)
     text.update()
 def recognite(): #启动人脸识别
+
     time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S') #时间
     text.insert(tkinter.END, time+'->成功启动人脸识别\n')
     text.see(tkinter.END)
@@ -157,10 +162,15 @@ def recognite(): #启动人脸识别
                 confidence = "Similarity{0}%".format(round(100 - confidence))
                 if (before!=after):
                     #print("Name->",id,",time->",time)
+                    #send_data = input("1请输入要发送的数据：") # 发送数据
+                    
                     time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S') #时间
                     text.insert(tkinter.END, time+'->'+id+'进入\n')
                     text.see(tkinter.END)
                     text.update()
+                    send_data = id
+                    tcp_socket.send(send_data.encode("utf8"))
+                    tcp_socket.close() # 关闭套接字
                     after = before
             else:
                 id = "未授权用户"
@@ -215,9 +225,9 @@ def checknew(): #检查更新
     text.insert(tkinter.END, time+'->检查更新\n')
     text.see(tkinter.END)
     text.update()
-    tkinter.messagebox.showinfo('检查更新','\n当前版本：5.0                       \n已是最新版本!\n')
+    tkinter.messagebox.showinfo('检查更新','\n当前版本：6.0                       \n已是最新版本!\n')
 def about(): #关于
-    tkinter.messagebox.showinfo('关于','\n作者：张志昊\n时间：2021/4/18                           \n版本：5.0\n')
+    tkinter.messagebox.showinfo('关于','\n作者：张志昊\n时间：2021/5/10                           \n版本：4.0\n')
 def exitsystem(): #退出系统
     time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S') #时间
     text.insert(tkinter.END, time+'->正在退出系统\n')
